@@ -28,7 +28,7 @@ path_lb_gene <- paste0(path_freez, "loci_with_genes.tsv")
 
 #----------#
 # read data files
-lb_cistrans <- data.table::fread(paste0(path_freez, path_lb))
+lb_cistrans <- data.table::fread(paste0(path_freez, path_lb_cistrans))
 
 
 # 1. Extract zip (run it once)
@@ -115,13 +115,12 @@ take_annot <- function(filepath, variant){
 #----------#
 
 # 7. iterating the functions
-lb_with_genes <- lb_annot %>%
-  dplyr::filter(!is.na(txtpath)) %>% 
-  #head(10) %>%
+lb_with_genes <- lb_annot %>% head() %>%
+  dplyr::filter(!is.na(txtpath)) %>% # in case there is a missing annotation for any locus
   dplyr::mutate(
-    Gene = map2(txtpath, snp, take_annot) # iterate the function to retrieve combined gene names
+    annot_gene_vep = map2_chr(txtpath, snp, take_annot) # iterate function to retrieve gene names
     ) %>%
-  dplyr::select(- txtpath)# %>% View()
+  dplyr::select(- c(txtpath, seqid, locus, snp)) # remove columns Solene suggested
 
 
 # save subset of output to Alessia to get her confirmation
@@ -137,17 +136,17 @@ quit()
 #----------------------------------------#
 
 # test above function
-data.table::fread(file = lb_annot$txtpath[157]) %>%
-  dplyr::filter(SNPID == lb_annot$snp[157], BIOTYPE == "protein_coding") %>% 
-  top_n(DISTANCE, n = -10) %>% # take canonical gene if present
-  distinct()
+data.table::fread(file = lb_annot$txtpath[4]) %>%
+  dplyr::filter(SNPID == lb_annot$snp[4], BIOTYPE == "protein_coding") %>% 
+  top_n(DISTANCE, n = -1) %>% # take closest gene
+  distinct(SYMBOL, .keep_all = T)
 
 
 # test iteration of the function and externally validate 
 # returned gene name by looking at UCSC genome browser
 map2(
-  lb_annot$txtpath[6971],
-  lb_annot$snp[6971],
+  lb_annot$txtpath[4],
+  lb_annot$snp[4],
   take_annot
 )
 
