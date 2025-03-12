@@ -115,7 +115,7 @@ take_annot <- function(filepath, variant){
 #----------#
 
 # 7. iterating the functions
-lb_with_genes <- lb_annot %>% head() %>%
+lb_with_genes <- lb_annot %>%
   dplyr::filter(!is.na(txtpath)) %>% # in case there is a missing annotation for any locus
   dplyr::mutate(
     annot_gene_vep = map2_chr(txtpath, SNPID, take_annot) # iterate function to retrieve gene names
@@ -126,28 +126,4 @@ lb_with_genes <- lb_annot %>% head() %>%
 #----------#
 # save subset of output to Alessia to get her confirmation
 data.table::fwrite(lb_with_genes, file = path_lb_gene, quote = F, row.names = F, sep = "\t")
-
-
-# exit the script in case we run this on clusters
-quit()
-
-
-#----------------------------------------#
-#-----        Test Functions        -----
-#----------------------------------------#
-
-# test above function
-data.table::fread(file = lb_annot$txtpath[4]) %>%
-  dplyr::filter(SNPID == lb_annot$snp[4], BIOTYPE == "protein_coding") %>% 
-  top_n(DISTANCE, n = -1) %>% # take closest gene
-  distinct(SYMBOL, .keep_all = T)
-
-
-# test iteration of the function and externally validate 
-# returned gene name by looking at UCSC genome browser
-map2(
-  lb_annot$txtpath[4],
-  lb_annot$snp[4],
-  take_annot
-)
 
