@@ -8,7 +8,6 @@ library(data.table)
 # inputs (locus_breaker or LB results)
 path_freez <- "/exchange/healthds/pQTL/results/META_CHRIS_INTERVAL/Locus_breaker_cojo_frozen_version_1812024/"
 path_lb_cistrans <- "Archived/mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann.csv"
-path_lb <- "16-Dec-24_collected_loci_excluding_mhc.csv"
 path_vep <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/snps_ld_in_meta_annot.zip"
 path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/unzipped/"
 
@@ -50,20 +49,21 @@ files_split <- files_annot %>%
     seqid   = txtname %>% str_remove_all("_chr.*+") %>% str_remove("^\\d+_\\d+_[ATCG]+_[ATCG]+_"),
     locus   = txtname %>% str_remove_all(".+_chr")
   ) %>%
-  dplyr::select(seqid, locus, snp, txtpath) %>% # take required column for joining LB file
-  distinct(seqid, locus, .keep_all = T) # in case there is any duplicated annotated file
+  dplyr::select(seqid, locus, snp, txtpath) # take required column for joining LB file
 
 
 # 4. Append annotated file name to LB file
 lb_annot <- lb_cistrans %>%
   # rename or reshape ID columns for join
   dplyr::mutate(
-    seqid = phenotype_id,
     locus = str_c(chr, start, end, sep = "_")
   ) %>%
+  # since there are more than one annotated file for some loci, join by 'SNPID == snp'
+  # ensures that we only take annotation file corresponding to the locus lead variant
+  # among the list of annotation files belonged to all independent snps at a locus
   left_join(
     files_split,
-    join_by(seqid, locus)
+    join_by(phenotype_id == seqid, locus, SNPID == snp)
   )
 
 
@@ -118,11 +118,12 @@ take_annot <- function(filepath, variant){
 lb_with_genes <- lb_annot %>% head() %>%
   dplyr::filter(!is.na(txtpath)) %>% # in case there is a missing annotation for any locus
   dplyr::mutate(
-    annot_gene_vep = map2_chr(txtpath, snp, take_annot) # iterate function to retrieve gene names
+    annot_gene_vep = map2_chr(txtpath, SNPID, take_annot) # iterate function to retrieve gene names
     ) %>%
-  dplyr::select(- c(txtpath, seqid, locus, snp)) # remove columns Solene suggested
+  dplyr::select(- c(txtpath, seqid, locus)) # remove columns Solene suggested
 
 
+#----------#
 # save subset of output to Alessia to get her confirmation
 data.table::fwrite(lb_with_genes, file = path_lb_gene, quote = F, row.names = F, sep = "\t")
 
