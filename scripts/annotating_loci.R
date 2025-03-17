@@ -12,7 +12,7 @@ path_vep <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/snps_ld
 path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/unzipped/"
 
 # outputs
-path_lb_gene <- paste0(path_freez, "loci_with_genes.tsv")
+path_lb_gene <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep.tsv")
 
 #----------#
 
@@ -120,10 +120,9 @@ lb_with_genes <- lb_annot %>%
   dplyr::mutate(
     annot_gene_vep = map2_chr(txtpath, SNPID, take_annot) # iterate function to retrieve gene names
     ) %>%
-  dplyr::select(- c(txtpath, seqid, locus)) # remove columns Solene suggested
+  dplyr::select(- c(txtpath, locus)) # remove columns Solene suggested
 
 
 #----------#
 # save subset of output to Alessia to get her confirmation
-data.table::fwrite(lb_with_genes, file = path_lb_gene, quote = F, row.names = F, sep = "\t")
 
