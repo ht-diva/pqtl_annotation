@@ -25,3 +25,23 @@ This process was designed to determine the gene names for **7,870 variants** map
 - This ensured consistency in gene annotation across all variants.
 
 This structured approach maximized gene annotation accuracy while addressing missing data through manual verification and external resources.
+
+
+
+
+
+## Identification of Epitope Effect
+
+
+# Steps to Implement:
+- Read the LB file which has path to each annotated TXT file.
+- Loop through each row, read the corresponding annotated TXT file, and filter relevant rows.
+- Check if the Consequence column contains any epitope effect's consequences.
+- If there’s a match, store TRUE and the corresponding SNPID; otherwise, store FALSE and NA.
+- In the end, we report 5 new variables:
+  1. ld_missing: if LD file is missing for SNPID at the corresponding locus.
+  2. epitope_effect_all: Indicates if any variant in annotated file has an epitope effect, regardless of gene match.
+  3. genes_with_epitope_effects: Lists all unique gene symbols where an epitope effect was observed.
+  4. epitope_effect: indicating epitope effect with seqid gene-matching only for rows where cis_or_trans == "cis". 
+  5. epitope_causing_variant: causal variants in a single row (concatenated with ;) causing epitope effect.
+
