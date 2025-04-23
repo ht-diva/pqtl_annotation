@@ -126,3 +126,12 @@ lb_with_genes <- lb_annot %>%
 #----------#
 # save subset of output to Alessia to get her confirmation
 
+
+lb_annot_missing <- lb_annot %>% 
+  filter(!complete.cases(.)) %>%
+  dplyr::rename(Chr = chr, bp = POS, SNP = SNPID, study_id = phenotype_id) %>%
+  dplyr::select(Chr, bp, SNP, locus, study_id)
+
+
+write.csv(lb_annot_missing, "/scratch/dariush.ghasemi/projects/SNPS_IN_LD/missing_loci.csv", quote = F, row.names = F)
+
