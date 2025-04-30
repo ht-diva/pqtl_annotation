@@ -10,7 +10,7 @@ path_lb_cistrans <- "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep.tsv"
 path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/unzipped/"
 
 # outputs
-path_lb_epitop <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep_epitope.tsv")
+path_lb_epitop <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep_epitope_high_moderate.tsv")
 
 
 #----------#
@@ -73,8 +73,17 @@ epitope_consequences <- c(
   "missense_variant,splice_region_variant",
   "start_lost",
   "stop_lost",
-  "start_gained",
-  "stop_gained"
+  "stop_gained",
+  "protein_altering_variant",
+  "inframe_insertion",
+  "inframe_deletion",
+  "feature_truncation",
+  "feature_elongation",
+  "transcript_amplification",
+  "frameshift_variant",
+  "splice_donor_variant",
+  "splice_acceptor_variant",
+  "transcript_ablation"
 )
 
 
