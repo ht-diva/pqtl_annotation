@@ -61,13 +61,6 @@ cojo_annot <- cojo %>%
     )
 
 
-lb_cistrans %>% 
-  mutate(
-    locus = str_c(chr, start, end, sep = "_"),
-    Ensemble_noisoform = str_remove_all(Ensembl, "\\.\\d+") # remove isoform number from Ensembl_id
-    ) %>%
-  dplyr::select(phenotype_id, locus, Ensembl, Ensemble_noisoform) %>% View()
-
 #----------------------------------------#
 #----    Epitope for seqid and all   ----
 #----------------------------------------#
