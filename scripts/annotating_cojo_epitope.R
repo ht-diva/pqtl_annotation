@@ -14,7 +14,7 @@ path_cojo <- "16-Dec-24_collected_independent_snps.csv"
 
 # outputs
 path_cojo_epitop <- paste0("cojo_epitope_high_moderate.tsv")
-
+out_lb_epitop_cojo <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep_epitope_high_moderate_cojo.tsv")
 
 #----------#
 # first extract the files inside the zip, 
@@ -173,7 +173,7 @@ results_epitope <- future_pmap_dfr(
   find_epitope
   )
 
-# Combine results with LB
+# Combine results with COJO
 cojo_annot_epitop <- cojo_annot %>%
   dplyr::select(- c(txtpath)) %>% #locus, Ensemble_noisoform, 
   cbind(results_epitope)
@@ -186,4 +186,42 @@ data.table::fwrite(
   row.names = F, 
   sep = "\t"
   )
+
+
+#----------------------------------------#
+#----    Epitope for COJO variants   ----
+#----------------------------------------#
+
+# prepare combined results for join with LB
+cojo_annot_epitop_4join <- cojo_annot_epitop %>%
+  dplyr::select(study_id, locus, SNP, epitope_effect, epitope_causing_variant) %>%
+  group_by(study_id, locus) %>%
+  summarise(
+    epitope_effect_cojo = all(epitope_effect == "Yes"),
+    total_cojo_snps = n(),
+    epitope_yes = sum(epitope_effect == "Yes"),
+    epitope_status = paste0(epitope_yes, "of", total_cojo_snps),
+    prop_epitope_yes = round(epitope_yes / total_cojo_snps, 2),
+    epitope_causing_cojo = paste(unique(epitope_causing_variant), collapse = "; ")
+  ) %>%
+  ungroup()
+
+#----------#
+# Combine results with LB
+lb_epitope_cojo <- lb_cistrans %>%
+  dplyr::mutate(locus = str_c(chr, start, end, sep = "_")) %>%
+  left_join(
+    cojo_annot_epitop_4join,
+    join_by(phenotype_id == study_id, locus)
+  )
+
+#----------#
+# save LB file with epitope effect for COJO SNPs
+data.table::fwrite(
+  lb_epitope_cojo,
+  file = out_lb_epitop_cojo,
+  quote = F,
+  row.names = F,
+  sep = "\t"
+)
 
