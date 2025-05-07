@@ -99,7 +99,7 @@ epitope_consequences <- c(
 
 
 # Function to find epitope effect of variants in locus breaker results
-find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
+find_epitope <- function(Ensemble_noisoform, txtpath) {
   
   # Handles missing files gracefully
   # If path is missing or empty or even not exists, return NA for all output columns
@@ -125,19 +125,17 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
   epitope_effect <- "No"
   epitope_causing_variant <- NA
   
-  # Only check Ensembl_id match if "cis"
-  if (cis_or_trans == "cis") {
-    epitope_rows <- annot_df %>%
-      dplyr::filter(
-        Gene %in% str_split(Ensemble_noisoform, ";\\s*")[[1]], # see if Gene ID matches with one of the ids in Ensembl_id for the seqid
-        Consequence %in% epitope_consequences # Check if any of variants' annotations has epitope consequences
-        )
 
-    if (nrow(epitope_rows) > 0) {
-      # report multiple causal variants in a single row
-      epitope_effect <- "Yes"
-      epitope_causing_variant <- paste(unique(epitope_rows$SNPID), collapse = ";")
-    }
+  epitope_rows <- annot_df %>%
+    dplyr::filter(
+      Gene %in% str_split(Ensemble_noisoform, ";\\s*")[[1]], # see if Gene ID matches with one of the ids in Ensembl_id for the seqid
+      Consequence %in% epitope_consequences # Check if any of variants' annotations has epitope consequences
+      )
+
+  if (nrow(epitope_rows) > 0) {
+    # report multiple causal variants in a single row
+    epitope_effect <- "Yes"
+    epitope_causing_variant <- paste(unique(epitope_rows$SNPID), collapse = ";")
   }
   
   # Find if there is epitope effect for any genes at locus
@@ -169,7 +167,7 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
 # Apply function to each row using pmap in purrr
 # which allows named arguments and avoids atomic vector issues
 results_epitope <- future_pmap_dfr(
-  cojo_annot %>% dplyr::select(Ensemble_noisoform, cis_or_trans, txtpath),
+  cojo_annot %>% dplyr::select(Ensemble_noisoform, txtpath),
   find_epitope
   )
 
