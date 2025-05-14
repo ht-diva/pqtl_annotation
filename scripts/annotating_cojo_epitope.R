@@ -70,9 +70,9 @@ cojo_annot <- cojo %>%
 # Steps to Implement:
 # Read the LB file which has path to each annotated TXT file.
 # Loop through each row, read the corresponding annotated TXT file, and filter relevant rows.
-# Check if the Consequence column contains any epitope effect's consequences.
+# Check if the Consequence column contains any of the mid-high impact consequences.
 # If there’s a match, store TRUE and the corresponding SNPID; otherwise, store FALSE and NA.
-# In the end, we repot 4 new variables:
+# In the end, we report 4 new variables:
 #    1. epitope_effect_all: Indicates if any variant in annotated file has an epitope effect, regardless of gene match.
 #    2. genes_with_epitope_effects: Lists all unique gene symbols where an epitope effect was observed.
 #    3. epitope_effect: indicating epitope effect with seqid gene-matching only for rows where cis_or_trans == "cis". 
@@ -104,7 +104,7 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
   # Handles missing files gracefully
   # If path is missing or empty or even not exists, return NA for all output columns
   # in case, gene id is empty, return NA
-  if (is.na(txtpath) || txtpath == "" || !file.exists(txtpath) || Ensemble_noisoform == "") {
+  if (is.na(txtpath) || txtpath == "" || !file.exists(txtpath) || (cis_or_trans == "cis" && Ensemble_noisoform == "")) {
     return(
       data.frame(
         missing_ld = "Yes",
@@ -175,7 +175,9 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
   return(res)
 }
 
-plan(multicore, workers = 30) # set cores number for parallel analysis
+# find number of available cores
+parallel::detectCores()
+plan(multicore, workers = 32) # set cores number for parallel analysis
 
 # Apply function to each row using pmap in purrr
 # which allows named arguments and avoids atomic vector issues
