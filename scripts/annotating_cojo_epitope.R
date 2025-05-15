@@ -13,7 +13,7 @@ path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data
 path_cojo <- "16-Dec-24_collected_independent_snps.csv"
 
 # outputs
-path_cojo_epitop <- paste0("cojo_epitope_high_moderate.tsv")
+path_cojo_epitop <- paste0("/scratch/dariush.ghasemi/projects/pqtl_annotation/cojo_epitope_high_moderate.tsv")
 out_lb_epitop_cojo <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep_epitope_high_moderate_cojo.tsv")
 
 #----------#
@@ -223,10 +223,20 @@ data.table::fwrite(
 
 # prepare combined results for join with LB
 cojo_annot_epitop_4join <- cojo_annot_epitop %>%
-  dplyr::select(study_id, locus, SNP, epitope_effect, epitope_causing_variant, epitope_effect_all, genes_with_epitope_effects) %>%
+  dplyr::select(
+    study_id,
+    locus,
+    SNP,
+    epitope_effect,
+    epitope_causing_variant,
+    epitope_effect_all,
+    genes_with_epitope_effects,
+    epitope_effect_high
+    ) %>%
   group_by(study_id, locus) %>%
   summarise(
     epitope_effect_cojo = all(epitope_effect == "Yes"),
+    epitope_effect_cojo_high = all(epitope_effect_high == "Yes"),
     total_cojo_snps = n(),
     epitope_yes = sum(epitope_effect == "Yes"),
     epitope_status = paste0(epitope_yes, "of", total_cojo_snps),
