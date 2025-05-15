@@ -35,8 +35,7 @@ files_split <- files_annot %>%
     seqid   = txtname %>% str_remove_all("_chr.*+") %>% str_remove("^\\d+_\\d+_[ATCG]+_[ATCG]+_"),
     locus   = txtname %>% str_remove_all(".+_chr")
   ) %>%
-  dplyr::select(seqid, locus, snp, txtpath) #%>% 
-  #distinct(seqid, locus, .keep_all = T)
+  dplyr::select(seqid, locus, snp, txtpath)
 
 
 #----------#
@@ -79,23 +78,28 @@ cojo_annot <- cojo %>%
 #    4. epitope_causing_variant: causal variants in a single row (concatenated with ;) causing epitope effect.
 
 
-epitope_consequences <- c(
-  "missense_variant", 
-  "missense_variant,splice_region_variant",
-  "start_lost",
-  "stop_lost",
-  "stop_gained",
-  "protein_altering_variant",
+mid_impact <- c(
   "inframe_insertion",
   "inframe_deletion",
-  "feature_truncation",
-  "feature_elongation",
-  "transcript_amplification",
-  "frameshift_variant",
-  "splice_donor_variant",
-  "splice_acceptor_variant",
-  "transcript_ablation"
+  "missense_variant", 
+  "missense_variant,splice_region_variant",
+  "protein_altering_variant"
 )
+
+high_impact <- c(
+  "transcript_ablation",
+  "splice_acceptor_variant",
+  "splice_donor_variant",
+  "stop_gained",
+  "frameshift_variant",
+  "stop_lost",
+  "start_lost",
+  "transcript_amplification",
+  "feature_elongation",
+  "feature_truncation"
+)
+
+epitope_consequences <- c(mid_impact, high_impact)
 
 
 # Function to find epitope effect of variants in locus breaker results
@@ -111,7 +115,8 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
         epitope_effect = NA,
         epitope_causing_variant = NA,
         epitope_effect_all = NA,
-        genes_with_epitope_effects = NA
+        genes_with_epitope_effects = NA,
+        epitope_effect_high = NA
       ))
     }
   
@@ -124,7 +129,7 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
   # Default values for epitope_effect (gene-specific check)
   epitope_effect <- "No"
   epitope_causing_variant <- NA
-  
+  epitope_effect_high <- NA
 
   # Only check Ensembl_id match if "cis"
   if (cis_or_trans == "cis") {
@@ -147,7 +152,16 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
       # report multiple causal variants in a single row
       epitope_effect <- "Yes"
       epitope_causing_variant <- paste(unique(epitope_rows$SNPID), collapse = ";")
-      }
+    }
+    
+    high_impact_rows <- annot_df %>%
+      dplyr::filter(
+        Consequence %in% high_impact # if any of annotations has high-impact consequences
+      )
+    
+    # defining epitope only using high-impact annotations
+    epitope_effect_high <- ifelse(nrow(high_impact_rows) > 0, "Yes", "No")
+    
     }
   
   # Find if there is epitope effect for any genes at locus
@@ -169,7 +183,8 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
     epitope_effect_all,
     genes_with_epitope_effects,
     epitope_effect,
-    epitope_causing_variant
+    epitope_causing_variant,
+    epitope_effect_high
   )
   
   return(res)
@@ -177,11 +192,12 @@ find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
 
 # find number of available cores
 parallel::detectCores()
-plan(multicore, workers = 32) # set cores number for parallel analysis
+# set cores number for parallel analysis
+future::plan(multicore, workers = 32) # default is parallelly::availableCores()
 
 # Apply function to each row using pmap in purrr
 # which allows named arguments and avoids atomic vector issues
-results_epitope <- future_pmap_dfr(
+results_epitope <- pmap_dfr(
   cojo_annot %>% dplyr::select(Ensemble_noisoform, cis_or_trans, txtpath),
   find_epitope
   )
