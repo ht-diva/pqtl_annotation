@@ -207,7 +207,7 @@ data.table::fwrite(
 
 # prepare combined results for join with LB
 cojo_annot_epitop_4join <- cojo_annot_epitop %>%
-  dplyr::select(study_id, locus, SNP, epitope_effect, epitope_causing_variant) %>%
+  dplyr::select(study_id, locus, SNP, epitope_effect, epitope_causing_variant, epitope_effect_all, genes_with_epitope_effects) %>%
   group_by(study_id, locus) %>%
   summarise(
     epitope_effect_cojo = all(epitope_effect == "Yes"),
@@ -215,7 +215,9 @@ cojo_annot_epitop_4join <- cojo_annot_epitop %>%
     epitope_yes = sum(epitope_effect == "Yes"),
     epitope_status = paste0(epitope_yes, "of", total_cojo_snps),
     prop_epitope_yes = round(epitope_yes / total_cojo_snps, 2),
-    epitope_causing_cojo = paste(unique(epitope_causing_variant), collapse = "; ")
+    epitope_causing_cojo = paste(unique(epitope_causing_variant), collapse = "; "),
+    epitope_effect_cojo_all = all(epitope_effect_all == "Yes"),
+    genes_with_epitope_effects = paste(unique(genes_with_epitope_effects), collapse = ";")
   ) %>%
   ungroup()
 
