@@ -1,0 +1,42 @@
+---
+title: "Epitope Analysis Report"
+author: "Dariush Ghasemi"
+format: html
+editor: visual
+---
+
+```{r Epitope Counts}
+#| echo: false
+
+suppressMessages(library(tidyverse))
+
+path_freez <- "/exchange/healthds/pQTL/results/META_CHRIS_INTERVAL/Locus_breaker_cojo_frozen_version_1812024/"
+
+out_lb_epitop_cojo <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep_epitope_high_moderate_cojo.tsv")
+
+lb_epitop_cojo <- data.table::fread(out_lb_epitop_cojo)
+
+# No. of loci with epitpe
+n_epitope_cojo <- lb_epitop_cojo %>% filter(epitope_effect_cojo == TRUE) %>% nrow()
+
+#lb_epitop_cojo %>% count(cis_or_trans, epitope_effect_cojo)
+
+# No. of cis loci with epitpe
+n_epitope_cojo_cis <- lb_epitop_cojo %>% 
+  filter(
+    epitope_effect_cojo == TRUE, 
+    cis_or_trans == "cis"
+    ) %>% 
+  nrow()
+
+# No. of trans loci with epitpe
+n_epitope_cojo_trans <- lb_epitop_cojo %>% 
+  filter(
+    epitope_effect_cojo == TRUE, 
+    cis_or_trans == "trans"
+    ) %>% 
+  nrow()
+
+```
+
+We identified `r n_epitope_cojo` of our signals (`r n_epitope_cojo_cis` cis and `r n_epitope_cojo_trans` trans) as likely due to epitope effect (see details in Methods and Supplementary Table 6).
