@@ -10,6 +10,7 @@ path_freez <- "/exchange/healthds/pQTL/results/META_CHRIS_INTERVAL/Locus_breaker
 path_lb_cistrans <- "Archived/mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann.csv"
 path_vep <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/snps_ld_in_meta_annot.zip"
 path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/unzipped/"
+path_vep_missing <- "/scratch/dariush.ghasemi/projects/snps_ld_in_meta_annot"
 
 # outputs
 path_lb_gene <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep.tsv")
@@ -37,17 +38,21 @@ lb_cistrans <- data.table::fread(paste0(path_freez, path_lb_cistrans))
 # 2. List the annotated files in zip
 files_annot <- list.files(paste0(path_vep_extract, "snps_ld_in_meta_annot"), full.names = TRUE)
 
+# annotations for the 55 missing loci
+files_annot_missing <- list.files(path_vep_missing, full.names = TRUE) #%>% gsub("_(\\d+_\\d+)_", "_chr\\1_", .)
+
 
 # 3. Extract columns needed for join with LB
 files_split <- files_annot %>%
+  c(files_annot_missing) %>%
   as_tibble() %>%
   # extract lead SNP, locus and seqid from annotation file name
   mutate(
     txtpath = value,  # easy rename; as_tibble used 'value' as the column name
     txtname = basename(txtpath) %>% str_remove("_snps_.*+"), # get rid of full path, then remove target variant from file name
     snp     = txtname %>% str_remove_all("_seq.*+") %>% str_replace_all("_", ":"),
-    seqid   = txtname %>% str_remove_all("_chr.*+") %>% str_remove("^\\d+_\\d+_[ATCG]+_[ATCG]+_"),
-    locus   = txtname %>% str_remove_all(".+_chr")
+    seqid   = txtname %>% str_remove_all("^\\d+_\\d+_[ATCG]+_[ATCG]+_") %>% str_remove_all("_(chr\\d+_\\d+_\\d+)|_(\\d+_\\d+_\\d+)"),
+    locus   = txtname %>% str_remove_all("^\\d+_\\d+_[ATCG]+_[ATCG]+_(seq.\\d+.\\d+)_") %>% str_remove_all("chr")
   ) %>%
   dplyr::select(seqid, locus, snp, txtpath) # take required column for joining LB file
 
@@ -125,7 +130,7 @@ lb_with_genes <- lb_annot %>%
 
 #----------#
 # save subset of output to Alessia to get her confirmation
-
+data.table::fwrite(lb_with_genes, file = path_lb_gene, quote = F, row.names = F)
 
 lb_annot_missing <- lb_annot %>% 
   filter(!complete.cases(.)) %>%
