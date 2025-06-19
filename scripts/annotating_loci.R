@@ -80,16 +80,29 @@ grep_gene_lb <- function(df) {
   
   # Check if any protein coding gene are present
   if ("protein_coding" %in% df$BIOTYPE) {
-    # Report closest gene by sorting the distance
-    return(
-      df %>%
-        dplyr::filter(BIOTYPE == "protein_coding") %>% # filter out any lincRNA, ncRNAs, etc.
-        top_n(DISTANCE, n = -1) %>% # take the closest gene in vicinity of the lead variant
-        # Collapses target genes into a string
-        summarise(annotated_genes = paste(unique(SYMBOL), collapse = "; ")) %>%
-        pull(annotated_genes)
-    )
-  } else {
+    
+    # filter out any lincRNA, ncRNAs, etc.
+    df_prot <- df %>% dplyr::filter(BIOTYPE == "protein_coding")
+    
+    # Consider in case all distances were missing
+    if(all(is.na(df_prot$DISTANCE))){
+      # Report unique genes
+      return(
+        df_prot %>%
+          summarise(annotated_genes = paste(unique(SYMBOL), collapse = "; ")) %>%
+          pull(annotated_genes)
+      )
+    } else{
+      # Report closest gene by sorting the distance
+      return(
+        df_prot %>%
+          top_n(DISTANCE, n = -1) %>% # take the closest gene in vicinity of the lead variant
+          # Collapses target genes into a string
+          summarise(annotated_genes = paste(unique(SYMBOL), collapse = "; ")) %>%
+          pull(annotated_genes)
+        )
+      }
+    } else {
     # Check if any canonical transcripts are present
     if ("YES" %in% df$CANONICAL) {
       # Report canonical transcripts
@@ -129,8 +142,15 @@ lb_with_genes <- lb_annot %>%
 
 
 #----------#
-# save subset of output to Alessia to get her confirmation
-data.table::fwrite(lb_with_genes, file = path_lb_gene, quote = F, row.names = F)
+# save output
+data.table::fwrite(
+  lb_with_genes,
+  file = path_lb_gene,
+  sep = "\t",
+  quote = F,
+  row.names = F
+  )
+
 
 lb_annot_missing <- lb_annot %>% 
   filter(!complete.cases(.)) %>%
