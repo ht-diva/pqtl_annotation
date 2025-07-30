@@ -8,12 +8,12 @@ library(furrr)  # for parallel
 #----------#
 # inputs (locus breaker or LB results)
 path_freez <- "/exchange/healthds/pQTL/results/META_CHRIS_INTERVAL/Locus_breaker_cojo_frozen_version_1812024/"
-path_lb_cistrans <- "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep.tsv"
+path_lb_cistrans <- "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann.csv"
 path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/unzipped/"
 path_cojo <- "16-Dec-24_collected_independent_snps.csv"
 
 # outputs
-path_cojo_epitop <- paste0("/scratch/dariush.ghasemi/projects/pqtl_annotation/cojo_epitope_high_moderate.tsv")
+path_cojo_epitop <- paste0("/scratch/dariush.ghasemi/projects/pqtl_annotation/cojo_epitope_symbol_matching.tsv")
 out_lb_epitop_cojo <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep_epitope_high_moderate_cojo.tsv")
 
 #----------#
@@ -57,7 +57,7 @@ cojo_annot <- cojo %>%
       locus = str_c(chr, start, end, sep = "_"),
       Ensemble_noisoform = str_remove_all(Ensembl, "\\.\\d+") # remove isoform number from Ensembl_id
       ) %>%
-      dplyr::select(phenotype_id, locus, cis_or_trans, Ensemble_noisoform),
+      dplyr::select(phenotype_id, locus, cis_or_trans, symbol, Ensemble_noisoform),
     join_by(study_id == phenotype_id, locus)
     )
 
@@ -72,10 +72,10 @@ cojo_annot <- cojo %>%
 # Check if the Consequence column contains any of the mid-high impact consequences.
 # If there’s a match, store TRUE and the corresponding SNPID; otherwise, store FALSE and NA.
 # In the end, we report 4 new variables:
-#    1. epitope_effect_all: Indicates if any variant in annotated file has an epitope effect, regardless of gene match.
-#    2. genes_with_epitope_effects: Lists all unique gene symbols where an epitope effect was observed.
-#    3. epitope_effect: indicating epitope effect with seqid gene-matching only for rows where cis_or_trans == "cis". 
-#    4. epitope_causing_variant: causal variants in a single row (concatenated with ;) causing epitope effect.
+#    1. epitope_inclusive: Indicates if any variant in annotated file has an epitope effect, regardless of gene match.
+#    2. genes_with_epitope: All unique gene symbols where epitope was observed.
+#    3. epitope: indicating epitope effect with seqid gene-matching only for rows where cis_or_trans == "cis". 
+#    4. epitope_snp: causal variants causing epitope effect.
 
 
 mid_impact <- c(
@@ -101,94 +101,99 @@ high_impact <- c(
 
 epitope_consequences <- c(mid_impact, high_impact)
 
-
-# Function to find epitope effect of variants in locus breaker results
-find_epitope <- function(Ensemble_noisoform, cis_or_trans, txtpath) {
+# Find epitope effect for COJO variants
+find_epitope <- function(symbol, cis_or_trans, txtpath) {
   
-  # Handles missing files gracefully
-  # If path is missing or empty or even not exists, return NA for all output columns
+  # If path is missing or empty or even not exists, 
+  # return NA for all output columns
   # in case, gene id is empty, return NA
-  if (is.na(txtpath) || txtpath == "" || !file.exists(txtpath) || (cis_or_trans == "cis" && Ensemble_noisoform == "")) {
+  if (
+    is.na(txtpath) || txtpath == "" || 
+    !file.exists(txtpath) || 
+    (cis_or_trans == "cis" && symbol == "")
+  ) {
     return(
       data.frame(
-        missing_ld = "Yes",
-        epitope_effect = NA,
-        epitope_causing_variant = NA,
-        epitope_effect_all = NA,
-        genes_with_epitope_effects = NA,
-        epitope_effect_high = NA
+        txtpath = txtpath,
+        epitope = NA,
+        epitope_snp = NA,
+        epitope_inclusive = NA,
+        epitope_high = NA,
+        genes_with_epitope = NA,
+        genes_matched = NA
       ))
-    }
+  }
   
   # Read the annotated file
   annot_df <- data.table::fread(txtpath)
   
-  # Check for any epitope effects in the whole file (epitope_effect_all)
-  epitope_rows_all <- annot_df %>% dplyr::filter(Consequence %in% epitope_consequences)
+  # filter for epitope consequences
+  epitope_rows <- annot_df[Consequence %in% epitope_consequences]
   
-  # Default values for epitope_effect (gene-specific check)
-  epitope_effect <- "No"
-  epitope_causing_variant <- NA
-  epitope_effect_high <- NA
-
-  # Only check Ensembl_id match if "cis"
+  # filter for high-impact consequences
+  high_impact_rows <- epitope_rows[Consequence %in% high_impact]
+  
+  # Default output columns
+  genes_matched <- NA
+  
+  # Only match gene symbol when locus/cojo is cis
   if (cis_or_trans == "cis") {
-    epitope_rows <- annot_df %>%
-      dplyr::filter(
-        Gene %in% str_split(Ensemble_noisoform, ";\\s*")[[1]], # see if Gene ID matches with one of the ids in Ensembl_id for the seqid
-        Consequence %in% epitope_consequences # Check if any of variants' annotations has epitope consequences
-      )
-    if (nrow(epitope_rows) > 0) {
-      # report multiple causal variants in a single row
-      epitope_effect <- "Yes"
-      epitope_causing_variant <- paste(unique(epitope_rows$SNPID), collapse = ";")
-    }
+    
+    # separte gene symbols if multiple symbols exist for protein target
+    gene_names <- strsplit(symbol, "\\|\\s*")[[1]]
+    # filter for genes matching with protein target
+    gene_rows  <- epitope_rows %>% dplyr::filter(SYMBOL %in% gene_names)
+    
+    # define epitope artifact
+    epitope <- ifelse(nrow(gene_rows) > 0, "Yes", "No")
+    
+    # report snps with middle/high impact on protein target gene
+    epitope_snp <- ifelse(
+      nrow(gene_rows) > 0,
+      paste(unique(gene_rows$SNPID), collapse = ";"),
+      NA
+    )
+    
+    # flag variable to indicate rows with mismatched genes
+    matched_rows <- annot_df[Gene %in% gene_names]
+    genes_matched  <- ifelse(nrow(matched_rows) > 0, "Yes", "No")
+    
   } else {
-    epitope_rows <- annot_df %>%
-      dplyr::filter(
-        Consequence %in% epitope_consequences # if any of annotations has epitope consequences
-      )
-    if (nrow(epitope_rows) > 0) {
-      # report multiple causal variants in a single row
-      epitope_effect <- "Yes"
-      epitope_causing_variant <- paste(unique(epitope_rows$SNPID), collapse = ";")
-    }
     
-    high_impact_rows <- annot_df %>%
-      dplyr::filter(
-        Consequence %in% high_impact # if any of annotations has high-impact consequences
-      )
+    # now define epitope for trans loci
+    epitope <- NA
+    epitope_snp <- NA
     
-    # defining epitope only using high-impact annotations
-    epitope_effect_high <- ifelse(nrow(high_impact_rows) > 0, "Yes", "No")
-    
-    }
+  }
+  
+  # defining epitope only using high-impact annotations
+  epitope_high <- ifelse(nrow(high_impact_rows) > 0, "Yes", "No")
   
   # Find if there is epitope effect for any genes at locus
-  epitope_effect_all <- ifelse(nrow(epitope_rows_all) > 0, "Yes", "No")
+  epitope_inclusive <- ifelse(nrow(epitope_rows) > 0, "Yes", "No")
   
   # Report multiple affected genes in a single row
-  genes_with_epitope_effects <- ifelse(
-    nrow(epitope_rows_all) > 0,
-    paste(unique(epitope_rows_all$SYMBOL), collapse = ";"),
+  genes_with_epitope <- ifelse(
+    nrow(epitope_rows) > 0,
+    paste(unique(epitope_rows$SYMBOL), collapse = ", "),
     NA
-    )
-  
-  # flag here that LD path is not missing
-  missing_ld <- "No"
-  
-  # shape final output
-  res <- data.frame(
-    missing_ld,
-    epitope_effect_all,
-    genes_with_epitope_effects,
-    epitope_effect,
-    epitope_causing_variant,
-    epitope_effect_high
   )
   
-  return(res)
+  # shape final output
+  return(
+    data.frame(
+      txtpath,
+      epitope,
+      epitope_snp,
+      epitope_inclusive,
+      epitope_high,
+      genes_with_epitope,
+      genes_matched
+    )
+  )
+  
 }
+
 
 # find number of available cores
 parallel::detectCores()
@@ -198,14 +203,14 @@ future::plan(multicore, workers = 32) # default is parallelly::availableCores()
 # Apply function to each row using pmap in purrr
 # which allows named arguments and avoids atomic vector issues
 results_epitope <- pmap_dfr(
-  cojo_annot %>% dplyr::select(Ensemble_noisoform, cis_or_trans, txtpath),
+  cojo_annot %>% dplyr::select(symbol, cis_or_trans, txtpath),
   find_epitope
   )
 
 # Combine results with COJO
 cojo_annot_epitop <- cojo_annot %>%
-  dplyr::select(- c(txtpath)) %>% #locus, Ensemble_noisoform, 
-  cbind(results_epitope)
+  inner_join(results_epitope, join_by(txtpath)) %>%
+  dplyr::select(- c(txtpath, symbol, Ensemble_noisoform))
 
 # save COJO file with epitope effect
 data.table::fwrite(
@@ -227,23 +232,24 @@ cojo_annot_epitop_4join <- cojo_annot_epitop %>%
     study_id,
     locus,
     SNP,
-    epitope_effect,
-    epitope_causing_variant,
-    epitope_effect_all,
-    genes_with_epitope_effects,
-    epitope_effect_high
+    epitope,
+    epitope_snp,
+    epitope_inclusive,
+    genes_with_epitope,
+    epitope_high
     ) %>%
   group_by(study_id, locus) %>%
   summarise(
-    epitope_effect_cojo = all(epitope_effect == "Yes"),
-    epitope_effect_cojo_high = all(epitope_effect_high == "Yes"),
+    epitope_cojo = all(epitope == "Yes"),
+    epitope_cojo_any = any(epitope == "Yes"),
+    epitope_cojo_high = all(epitope_high == "Yes"),
+    epitope_cojo_all = all(epitope_inclusive == "Yes"),
     total_cojo_snps = n(),
-    epitope_yes = sum(epitope_effect == "Yes"),
+    epitope_yes = sum(epitope == "Yes"),
     epitope_status = paste0(epitope_yes, "of", total_cojo_snps),
     prop_epitope_yes = round(epitope_yes / total_cojo_snps, 2),
-    epitope_causing_cojo = paste(unique(epitope_causing_variant), collapse = "; "),
-    epitope_effect_cojo_all = all(epitope_effect_all == "Yes"),
-    genes_with_epitope_effects = paste(unique(genes_with_epitope_effects), collapse = ";")
+    epitope_causing_cojo = paste(unique(epitope_snp), collapse = "; "),
+    genes_with_epitope = paste(unique(genes_with_epitope), collapse = ";")
   ) %>%
   ungroup()
 
