@@ -14,7 +14,7 @@ path_cojo <- "16-Dec-24_collected_independent_snps.csv"
 
 # outputs
 path_cojo_epitop <- paste0("/scratch/dariush.ghasemi/projects/pqtl_annotation/cojo_epitope_symbol_matching.tsv")
-out_lb_epitop_cojo <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_vep_epitope_high_moderate_cojo.tsv")
+out_lb_epitop_cojo <- paste0(path_freez, "mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann_epitope_symbol_matching.tsv")
 
 #----------#
 # first extract the files inside the zip, 
@@ -67,15 +67,17 @@ cojo_annot <- cojo %>%
 #----------------------------------------#
 
 # Steps to Implement:
-# Read the LB file which has path to each annotated TXT file.
-# Loop through each row, read the corresponding annotated TXT file, and filter relevant rows.
-# Check if the Consequence column contains any of the mid-high impact consequences.
-# If there’s a match, store TRUE and the corresponding SNPID; otherwise, store FALSE and NA.
-# In the end, we report 4 new variables:
-#    1. epitope_inclusive: Indicates if any variant in annotated file has an epitope effect, regardless of gene match.
+# Append path to annotation file (from Michele F) to COJO results.
+# Next, loop through each row, read the annotation file.
+# Depending on the conditions below, define these columns:
+#    1. epitope_inclusive: if any COJO or proxy variants has moderate- or 
+#       high-impact consequences on any protein coding genes.
 #    2. genes_with_epitope: All unique gene symbols where epitope was observed.
-#    3. epitope: indicating epitope effect with seqid gene-matching only for rows where cis_or_trans == "cis". 
+#    3. epitope: for cis only, if any COJO or proxy variants has moderate- or 
+#       high-impact consequences on the gene encoding protein seqid (with gene symbol matching). 
 #    4. epitope_snp: causal variants causing epitope effect.
+#    5. epitope_high: for trans only, if any variant in annotated file has 
+#       high-impact consequences on any coding genes.
 
 
 mid_impact <- c(
@@ -208,6 +210,8 @@ find_epitope <- function(symbol, cis_or_trans, txtpath) {
 parallel::detectCores()
 # set cores number for parallel analysis
 future::plan(multicore, workers = 32) # default is parallelly::availableCores()
+
+
 
 # Apply function to each row using pmap in purrr
 # which allows named arguments and avoids atomic vector issues
