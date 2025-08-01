@@ -130,11 +130,19 @@ find_epitope <- function(symbol, cis_or_trans, txtpath) {
   # filter for epitope consequences
   epitope_rows <- annot_df[Consequence %in% epitope_consequences]
   
-  # filter for high-impact consequences
-  high_impact_rows <- epitope_rows[Consequence %in% high_impact]
+  # filter for high-impact consequences on any protein coding genes
+  high_impact_rows <- epitope_rows %>% 
+    dplyr::filter(
+      Consequence %in% high_impact,
+      BIOTYPE == "protein_coding"
+    )
+  
+  # take only protein cloding genes
+  epitope_inclusive_rows <- epitope_rows[BIOTYPE == "protein_coding"]
   
   # Default output columns
   genes_matched <- NA
+  epitope_high  <- NA
   
   # Only match gene symbol when locus/cojo is cis
   if (cis_or_trans == "cis") {
@@ -155,7 +163,7 @@ find_epitope <- function(symbol, cis_or_trans, txtpath) {
     )
     
     # flag variable to indicate rows with mismatched genes
-    matched_rows <- annot_df[Gene %in% gene_names]
+    matched_rows <- annot_df[symbol %in% gene_names]
     genes_matched  <- ifelse(nrow(matched_rows) > 0, "Yes", "No")
     
   } else {
@@ -164,13 +172,14 @@ find_epitope <- function(symbol, cis_or_trans, txtpath) {
     epitope <- NA
     epitope_snp <- NA
     
+    # defining epitope only using high-impact annotations
+    epitope_high <- ifelse(nrow(high_impact_rows) > 0, "Yes", "No")
+    
   }
   
-  # defining epitope only using high-impact annotations
-  epitope_high <- ifelse(nrow(high_impact_rows) > 0, "Yes", "No")
   
-  # Find if there is epitope effect for any genes at locus
-  epitope_inclusive <- ifelse(nrow(epitope_rows) > 0, "Yes", "No")
+  # Find epitope effect for any protein coding genes at locus
+  epitope_inclusive <- ifelse(nrow(epitope_inclusive_rows) > 0, "Yes", "No")
   
   # Report multiple affected genes in a single row
   genes_with_epitope <- ifelse(
