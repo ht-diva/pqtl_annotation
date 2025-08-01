@@ -240,10 +240,10 @@ cojo_annot_epitop_4join <- cojo_annot_epitop %>%
     ) %>%
   group_by(study_id, locus) %>%
   summarise(
-    epitope_cojo = all(epitope == "Yes"),
+    cis_epitope_effect = all(epitope == "Yes"),
     epitope_cojo_any = any(epitope == "Yes"),
-    epitope_cojo_high = all(epitope_high == "Yes"),
-    epitope_cojo_all = all(epitope_inclusive == "Yes"),
+    epitope_cojo_high = any(epitope_high == "Yes"),
+    impact_variant_vep = all(epitope_inclusive == "Yes"),
     total_cojo_snps = n(),
     epitope_yes = sum(epitope == "Yes"),
     epitope_status = paste0(epitope_yes, "of", total_cojo_snps),
