@@ -254,15 +254,15 @@ cojo_annot_epitop_4join <- cojo_annot_epitop %>%
   group_by(study_id, locus) %>%
   summarise(
     cis_epitope_effect = all(epitope == "Yes"),
-    epitope_cojo_any = any(epitope == "Yes"),
+    cis_epitope_warning = any(epitope == "Yes"),
     epitope_cojo_high = any(epitope_high == "Yes"),
-    impact_variant_vep = all(epitope_inclusive == "Yes"),
+    impact_variant_vep = any(epitope_inclusive == "Yes"),
     total_cojo_snps = n(),
     epitope_yes = sum(epitope == "Yes"),
     epitope_status = paste0(epitope_yes, "of", total_cojo_snps),
     prop_epitope_yes = round(epitope_yes / total_cojo_snps, 2),
     epitope_causing_cojo = paste(unique(epitope_snp), collapse = "; "),
-    genes_with_epitope = paste(unique(genes_with_epitope), collapse = ";")
+    affected_genes_from_vep = paste(unique(genes_with_epitope), collapse = ";")
   ) %>%
   ungroup()
 
