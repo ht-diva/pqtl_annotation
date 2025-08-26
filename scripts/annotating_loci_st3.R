@@ -11,9 +11,10 @@ path_freez <- "/exchange/healthds/pQTL/results/META_CHRIS_INTERVAL/Locus_breaker
 path_lb_cistrans <- "Archived/mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann.csv"
 path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/unzipped/"
 path_cojo <- "16-Dec-24_collected_independent_snps.csv"
+path_coloc <- "/scratch/dariush.ghasemi/projects/pqtl_pipeline_finemap/results/meta_correct_sdy/coloc"
 
 # outputs
-path_st3 <- paste0(path_freez, "05-Aug-25_suppl_table_3_cojo_variants_vep_annotated.tsv")
+path_st3 <- paste0(path_freez, "26-Aug-25_suppl_table_3_cojo_variants_vep_annotated_credible_sets.tsv")
 
 #----------#
 
@@ -27,7 +28,7 @@ path_st3 <- paste0(path_freez, "05-Aug-25_suppl_table_3_cojo_variants_vep_annota
 #----------#
 # read data files
 lb_cistrans <- fread(paste0(path_freez, path_lb_cistrans))
-cojo <- read.csv(paste0(path_freez, path_cojo))
+cojo <- fread(paste0(path_freez, path_cojo))
 
 
 # 1. List the annotated files in zip
@@ -119,7 +120,6 @@ find_annotation <- function(txtpath) {
 }
 
 #----------#
-# Supplementary Table 3
 
 # 5. iterate function to read annotated file and find annotation row-wise
 results_annot <- pmap_dfr(
@@ -127,11 +127,41 @@ results_annot <- pmap_dfr(
   find_annotation
 )
 
+#----------#
+# Supplementary Table 3
+
+# COJO SNPs with credible sets
+path_coloc_master <- paste0(path_coloc, "/master_coloc.txt")
+master_file <- data.table::fread(path_coloc_master)
+
+# prepare COJO for merge with annotation results
+cojo_credible_set <- master_file %>%
+  dplyr::mutate(
+    seqid = basename(seqid), 
+    file = basename(path_rds),
+    ncs = str_count(credible_set, ",") + 1
+  ) %>%
+  tidyr::separate(file, into = c("SNP", "loc", "chrom", "start", "end"), sep = "_", convert = TRUE) %>%
+  tidyr::unite(locus, chrom, start, end, sep = "_") %>%
+  dplyr::select(seqid, locus, SNP, ncs, credible_set)
+
+
 
 # Combine results with COJO
 st3 <- cojo_annot %>%
-  right_join(results_annot, join_by(txtpath)) %>%
-  dplyr::select(- txtpath)
+  right_join(results_annot, join_by(txtpath)) %>% # add VEP annotation
+  dplyr::mutate(locus = str_c("chr", locus)) %>% # for consistency with ST2
+  group_by(study_id, locus) %>%
+  dplyr::mutate(ncojo = n_distinct(SNP)) %>% # compute number of COJO SNPs per seqid-locus
+  ungroup() %>% # add credible set variants
+  left_join(cojo_credible_set, join_by(study_id == seqid, locus, SNP)) %>%
+  dplyr::mutate(
+    bC_st3       = ifelse(ncojo == 1, "-", bC),
+    bC_se_st3    = ifelse(ncojo == 1, "-", bC_se),
+    mlog10pC_st3 = ifelse(ncojo == 1, "-", mlog10pC)
+  ) %>%
+  dplyr::select(- txtpath, - cojo_snp)
+
 
 #----------#
 # save output
@@ -139,7 +169,7 @@ data.table::fwrite(
   st3,
   file = path_st3,
   sep = "\t",
-  quote = F,
+  quote = T,
   row.names = F
   )
 
