@@ -12,9 +12,11 @@ path_lb_cistrans <- "Archived/mapped_LB_gp_ann_va_ann_bl_ann_collapsed_hf_ann.cs
 path_vep_extract <- "/exchange/healthds/pQTL/pQTL_workplace/annotations/VEP/data/unzipped/"
 path_cojo <- "16-Dec-24_collected_independent_snps.csv"
 path_coloc <- "/scratch/dariush.ghasemi/projects/pqtl_pipeline_finemap/results/meta_correct_sdy/coloc"
+path_cojo_epitop <- "/scratch/dariush.ghasemi/projects/pqtl_annotation/cojo_epitope_symbol_matching.tsv"
 
 # outputs
 path_st3 <- paste0(path_freez, "26-Aug-25_suppl_table_3_cojo_variants_vep_annotated_credible_sets.tsv")
+path_st3_epitop <- paste0(path_freez, "06-Oct-25_suppl_table_3_cojo_variants_vep_annotated_credible_sets_epitope.tsv")
 
 #----------#
 
@@ -163,11 +165,30 @@ st3 <- cojo_annot %>%
   dplyr::select(- txtpath, - cojo_snp)
 
 
+# Read COJO table annotated with epitope effect, 
+# resulted from `pqtl_annotation/scripts/annotating_cojo_epitope.R`
+cojo_epitop <- fread(path_cojo_epitop)
+
+# Add epitope (Yes/No) column to vep-annotated ST3 with CS list
+st3_epitop <- st3 %>%
+  left_join(
+    cojo_epitop %>%
+      dplyr::mutate(
+        locus = paste0("chr", locus),
+        # replace Yes/No with TRUE/FALSE
+        cis_epitope_effect = str_replace(epitope, "Yes", "TRUE"),
+        cis_epitope_effect = str_replace(cis_epitope_effect, "No", "FALSE")
+        ) %>%
+      dplyr::select(study_id, locus, SNP, cis_epitope_effect),
+    join_by(study_id, locus, SNP)
+  )
+
+
 #----------#
 # save output
 data.table::fwrite(
-  st3,
-  file = path_st3,
+  st3_epitop,
+  file = path_st3_epitop,
   sep = "\t",
   quote = T,
   row.names = F
